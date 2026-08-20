@@ -1,23 +1,50 @@
 "use server"
 
 import { redirect } from "next/navigation"
-import { controleerAntwoord, maakSessie, verwijderSessie } from "@/lib/auth"
+import { createClient } from "@/lib/supabase/server"
 
 export async function inloggen(
   _prevState: { fout?: string } | undefined,
   formData: FormData,
 ): Promise<{ fout?: string }> {
-  const antwoord = String(formData.get("antwoord") ?? "")
+  const email = String(formData.get("email") ?? "").trim()
+  const password = String(formData.get("password") ?? "")
+  if (!email || !password) return { fout: "Vul je e-mailadres en wachtwoord in." }
 
-  if (!controleerAntwoord(antwoord)) {
-    return { fout: "Dat is niet het juiste antwoord. Probeer het opnieuw." }
+  const supabase = await createClient()
+  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) {
+    if (error.message.toLowerCase().includes("confirm")) {
+      return { fout: "Bevestig eerst je e-mailadres via de link in je inbox." }
+    }
+    return { fout: "Ongeldig e-mailadres of wachtwoord." }
   }
-
-  await maakSessie()
   redirect("/")
 }
 
+export async function registreren(
+  _prevState: { fout?: string; succes?: string } | undefined,
+  formData: FormData,
+): Promise<{ fout?: string; succes?: string }> {
+  const email = String(formData.get("email") ?? "").trim()
+  const password = String(formData.get("password") ?? "")
+  if (!email || password.length < 8) return { fout: "Gebruik een geldig e-mailadres en minimaal 8 tekens." }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ?? "http://localhost:3000/auth/callback",
+    },
+  })
+  if (error) return { fout: "Registreren is niet gelukt. Controleer je gegevens." }
+  if (data.session) redirect("/")
+  return { succes: "Controleer je inbox om je e-mailadres te bevestigen." }
+}
+
 export async function uitloggen() {
-  await verwijderSessie()
+  const supabase = await createClient()
+  await supabase.auth.signOut()
   redirect("/login")
 }
