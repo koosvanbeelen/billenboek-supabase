@@ -1,7 +1,6 @@
 "use server"
 
-import { and, desc, eq, gte, lte } from "drizzle-orm"
-import type { AnyPgColumn } from "drizzle-orm/pg-core"
+import { eq } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import {
@@ -16,6 +15,7 @@ import {
   vitamines,
   voedingen,
 } from "@/lib/db/schema"
+import { createClient as createSupabaseClient } from "@/lib/supabase/server"
 import { dagGrenzen, datumNaarInput, duurInMinuten, inputNaarDatum } from "@/lib/datum"
 import type {
   BoertjeItem,
@@ -60,6 +60,31 @@ function herlaad() {
   revalidatePath("/geschiedenis")
 }
 
+async function getOwnedClient() {
+  const supabase = await createSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error("Niet ingelogd")
+  return { supabase, user }
+}
+
+async function insertOwn(table: string, values: Record<string, unknown>) {
+  const { supabase, user } = await getOwnedClient()
+  const { error } = await supabase.from(table).insert({ ...values, user_id: user.id })
+  if (error) throw error
+}
+
+async function updateOwn(table: string, id: number, values: Record<string, unknown>) {
+  const { supabase, user } = await getOwnedClient()
+  const { error } = await supabase.from(table).update(values).eq("id", id).eq("user_id", user.id)
+  if (error) throw error
+}
+
+async function deleteOwn(table: string, id: number) {
+  const { supabase, user } = await getOwnedClient()
+  const { error } = await supabase.from(table).delete().eq("id", id).eq("user_id", user.id)
+  if (error) throw error
+}
+
 const iso = (d: Date) => d.toISOString()
 
 // ---------------------------------------------------------------------------
@@ -67,44 +92,44 @@ const iso = (d: Date) => d.toISOString()
 // ---------------------------------------------------------------------------
 export async function getDagGegevens(datum: string): Promise<DagGegevens> {
   const { van, tot } = dagGrenzen(datum)
+  const supabase = await createSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error("Niet ingelogd")
 
-  const binnen = (kolom: AnyPgColumn<{ data: Date }>) =>
-    and(gte(kolom, van), lte(kolom, tot))
+  const dagQuery = async (table: string, timeColumn: string): Promise<any[]> => {
+    const { data, error } = await supabase
+      .from(table)
+      .select("*")
+      .eq("user_id", user.id)
+      .gte(timeColumn, van.toISOString())
+      .lte(timeColumn, tot.toISOString())
+    if (error) throw error
+    return data ?? []
+  }
 
-  // Alles na elkaar i.p.v. via Promise.all: gelijktijdige queries (zelfs
-  // maar een stuk of 10) bleken de Neon-verbinding te overbelasten, met een
-  // schijnbaar willekeurige query die dan faalde. Sequentieel ophalen kost
-  // wat milliseconden meer, maar is voor deze schaal (één gezin) volledig
-  // verwaarloosbaar en voorkomt dit probleem structureel.
-  const vRows = await db.select().from(voedingen).where(binnen(voedingen.datumTijd))
-  const lRows = await db.select().from(luiers).where(binnen(luiers.datumTijd))
-  const tRows = await db
-    .select()
-    .from(temperaturen)
-    .where(binnen(temperaturen.datumTijd))
-  const bRows = await db
-    .select()
-    .from(boertjesSpugen)
-    .where(binnen(boertjesSpugen.datumTijd))
-  const viRows = await db.select().from(vitamines).where(binnen(vitamines.datumTijd))
-  const mRows = await db.select().from(medicatie).where(binnen(medicatie.datumTijd))
-  const gRows = await db.select().from(groei).where(binnen(groei.datumTijd))
-  const sRows = await db.select().from(slapen).where(binnen(slapen.start))
-  const hRows = await db.select().from(huilen).where(binnen(huilen.start))
-  const kRows = await db.select().from(kolven).where(binnen(kolven.datumTijd))
+  const vRows = await dagQuery("voedingen", "datumTijd")
+  const lRows = await dagQuery("luiers", "datumTijd")
+  const tRows = await dagQuery("temperaturen", "datumTijd")
+  const bRows = await dagQuery("boertjesSpugen", "datumTijd")
+  const viRows = await dagQuery("vitamines", "datumTijd")
+  const mRows = await dagQuery("medicatie", "datumTijd")
+  const gRows = await dagQuery("groei", "datumTijd")
+  const sRows = await dagQuery("slapen", "start")
+  const hRows = await dagQuery("huilen", "start")
+  const kRows = await dagQuery("kolven", "datumTijd")
 
-  // Meest recente voeding/luier over de hele geschiedenis (niet begrensd
-  // tot deze dag), voor de "tijd sinds laatste..."-tellers.
-  const laatsteVoedingRij = await db
-    .select({ datumTijd: voedingen.datumTijd })
-    .from(voedingen)
-    .orderBy(desc(voedingen.datumTijd))
-    .limit(1)
-  const laatsteLuierRij = await db
-    .select({ datumTijd: luiers.datumTijd })
-    .from(luiers)
-    .orderBy(desc(luiers.datumTijd))
-    .limit(1)
+  const historyQuery = async (table: string) => {
+    const { data, error } = await supabase
+      .from(table)
+      .select("datumTijd")
+      .eq("user_id", user.id)
+      .order("datumTijd", { ascending: false })
+      .limit(1)
+    if (error) throw error
+    return data ?? []
+  }
+  const laatsteVoedingRij = await historyQuery("voedingen")
+  const laatsteLuierRij = await historyQuery("luiers")
 
   const items: TijdlijnItem[] = []
 
@@ -277,8 +302,8 @@ export async function getDagGegevens(datum: string): Promise<DagGegevens> {
 // ---------------------------------------------------------------------------
 export async function voegVoedingToe(input: VoedingInput) {
   const d = voedingSchema.parse(input)
-  await db.insert(voedingen).values({
-    datumTijd: inputNaarDatum(d.datumTijd),
+  await insertOwn("voedingen", {
+    datumTijd: inputNaarDatum(d.datumTijd).toISOString(),
     type: d.type,
     borst: d.type === "borstvoeding" ? d.borst : null,
     duurMinuten: d.type === "borstvoeding" ? d.duurMinuten ?? null : null,
@@ -290,23 +315,20 @@ export async function voegVoedingToe(input: VoedingInput) {
 
 export async function werkVoedingBij(id: number, input: VoedingInput) {
   const d = voedingSchema.parse(input)
-  await db
-    .update(voedingen)
-    .set({
-      datumTijd: inputNaarDatum(d.datumTijd),
-      type: d.type,
-      borst: d.type === "borstvoeding" ? d.borst : null,
-      duurMinuten: d.type === "borstvoeding" ? d.duurMinuten ?? null : null,
-      hoeveelheidMl: d.type !== "borstvoeding" ? d.hoeveelheidMl ?? null : null,
-      notitie: d.notitie || null,
-      bijgewerktOp: new Date(),
-    })
-    .where(eq(voedingen.id, id))
+  await updateOwn("voedingen", id, {
+    datumTijd: inputNaarDatum(d.datumTijd).toISOString(),
+    type: d.type,
+    borst: d.type === "borstvoeding" ? d.borst : null,
+    duurMinuten: d.type === "borstvoeding" ? d.duurMinuten ?? null : null,
+    hoeveelheidMl: d.type !== "borstvoeding" ? d.hoeveelheidMl ?? null : null,
+    notitie: d.notitie || null,
+    bijgewerktOp: new Date().toISOString(),
+  })
   herlaad()
 }
 
 export async function verwijderVoeding(id: number) {
-  await db.delete(voedingen).where(eq(voedingen.id, id))
+  await deleteOwn("voedingen", id)
   herlaad()
 }
 
@@ -315,8 +337,8 @@ export async function verwijderVoeding(id: number) {
 // ---------------------------------------------------------------------------
 export async function voegLuierToe(input: LuierInput) {
   const d = luierSchema.parse(input)
-  await db.insert(luiers).values({
-    datumTijd: inputNaarDatum(d.datumTijd),
+  await insertOwn("luiers", {
+    datumTijd: inputNaarDatum(d.datumTijd).toISOString(),
     plas: d.plas,
     poep: d.poep,
     schoon: d.schoon,
@@ -326,21 +348,18 @@ export async function voegLuierToe(input: LuierInput) {
 
 export async function werkLuierBij(id: number, input: LuierInput) {
   const d = luierSchema.parse(input)
-  await db
-    .update(luiers)
-    .set({
-      datumTijd: inputNaarDatum(d.datumTijd),
-      plas: d.plas,
-      poep: d.poep,
-      schoon: d.schoon,
-      bijgewerktOp: new Date(),
-    })
-    .where(eq(luiers.id, id))
+  await updateOwn("luiers", id, {
+    datumTijd: inputNaarDatum(d.datumTijd).toISOString(),
+    plas: d.plas,
+    poep: d.poep,
+    schoon: d.schoon,
+    bijgewerktOp: new Date().toISOString(),
+  })
   herlaad()
 }
 
 export async function verwijderLuier(id: number) {
-  await db.delete(luiers).where(eq(luiers.id, id))
+  await deleteOwn("luiers", id)
   herlaad()
 }
 
@@ -349,8 +368,8 @@ export async function verwijderLuier(id: number) {
 // ---------------------------------------------------------------------------
 export async function voegTemperatuurToe(input: TemperatuurInput) {
   const d = temperatuurSchema.parse(input)
-  await db.insert(temperaturen).values({
-    datumTijd: inputNaarDatum(d.datumTijd),
+  await insertOwn("temperaturen", {
+    datumTijd: inputNaarDatum(d.datumTijd).toISOString(),
     temperatuur: d.temperatuur.toFixed(1),
   })
   herlaad()
@@ -370,7 +389,7 @@ export async function werkTemperatuurBij(id: number, input: TemperatuurInput) {
 }
 
 export async function verwijderTemperatuur(id: number) {
-  await db.delete(temperaturen).where(eq(temperaturen.id, id))
+  await deleteOwn("temperaturen", id)
   herlaad()
 }
 
@@ -379,8 +398,8 @@ export async function verwijderTemperatuur(id: number) {
 // ---------------------------------------------------------------------------
 export async function voegBoertjeToe(input: BoertjeInput) {
   const d = boertjeSchema.parse(input)
-  await db.insert(boertjesSpugen).values({
-    datumTijd: inputNaarDatum(d.datumTijd),
+  await insertOwn("boertjesSpugen", {
+    datumTijd: inputNaarDatum(d.datumTijd).toISOString(),
     notitie: d.notitie || null,
   })
   herlaad()
@@ -400,7 +419,7 @@ export async function werkBoertjeBij(id: number, input: BoertjeInput) {
 }
 
 export async function verwijderBoertje(id: number) {
-  await db.delete(boertjesSpugen).where(eq(boertjesSpugen.id, id))
+  await deleteOwn("boertjesSpugen", id)
   herlaad()
 }
 
@@ -417,8 +436,8 @@ export async function werkSpugenBij(id: number, input: BoertjeInput) {
 // ---------------------------------------------------------------------------
 export async function voegVitamineToe(input: VitamineInput) {
   const d = vitamineSchema.parse(input)
-  await db.insert(vitamines).values({
-    datumTijd: inputNaarDatum(d.datumTijd),
+  await insertOwn("vitamines", {
+    datumTijd: inputNaarDatum(d.datumTijd).toISOString(),
     vitamineK: d.vitamineK,
     vitamineD: d.vitamineD,
   })
@@ -440,7 +459,7 @@ export async function werkVitamineBij(id: number, input: VitamineInput) {
 }
 
 export async function verwijderVitamine(id: number) {
-  await db.delete(vitamines).where(eq(vitamines.id, id))
+  await deleteOwn("vitamines", id)
   herlaad()
 }
 
@@ -449,8 +468,8 @@ export async function verwijderVitamine(id: number) {
 // ---------------------------------------------------------------------------
 export async function voegMedicatieToe(input: MedicatieInput) {
   const d = medicatieSchema.parse(input)
-  await db.insert(medicatie).values({
-    datumTijd: inputNaarDatum(d.datumTijd),
+  await insertOwn("medicatie", {
+    datumTijd: inputNaarDatum(d.datumTijd).toISOString(),
     naam: d.naam,
     dosering: d.dosering || null,
     notitie: d.notitie || null,
@@ -474,7 +493,7 @@ export async function werkMedicatieBij(id: number, input: MedicatieInput) {
 }
 
 export async function verwijderMedicatie(id: number) {
-  await db.delete(medicatie).where(eq(medicatie.id, id))
+  await deleteOwn("medicatie", id)
   herlaad()
 }
 
@@ -483,8 +502,8 @@ export async function verwijderMedicatie(id: number) {
 // ---------------------------------------------------------------------------
 export async function voegGroeiToe(input: GroeiInput) {
   const d = groeiSchema.parse(input)
-  await db.insert(groei).values({
-    datumTijd: inputNaarDatum(d.datumTijd),
+  await insertOwn("groei", {
+    datumTijd: inputNaarDatum(d.datumTijd).toISOString(),
     gewichtKg: d.gewichtKg !== undefined ? d.gewichtKg.toFixed(2) : null,
     lengteCm: d.lengteCm !== undefined ? d.lengteCm.toFixed(1) : null,
     opmerking: d.opmerking || null,
@@ -508,7 +527,7 @@ export async function werkGroeiBij(id: number, input: GroeiInput) {
 }
 
 export async function verwijderGroei(id: number) {
-  await db.delete(groei).where(eq(groei.id, id))
+  await deleteOwn("groei", id)
   herlaad()
 }
 
@@ -517,9 +536,9 @@ export async function verwijderGroei(id: number) {
 // ---------------------------------------------------------------------------
 export async function voegSlaapToe(input: SlaapInput) {
   const d = slaapSchema.parse(input)
-  await db.insert(slapen).values({
-    start: inputNaarDatum(d.start),
-    einde: inputNaarDatum(d.einde),
+  await insertOwn("slapen", {
+    start: inputNaarDatum(d.start).toISOString(),
+    einde: inputNaarDatum(d.einde).toISOString(),
     duurMinuten: duurInMinuten(d.start, d.einde),
     locatie: d.locatie || null,
     notitie: d.notitie || null,
@@ -544,7 +563,7 @@ export async function werkSlaapBij(id: number, input: SlaapInput) {
 }
 
 export async function verwijderSlaap(id: number) {
-  await db.delete(slapen).where(eq(slapen.id, id))
+  await deleteOwn("slapen", id)
   herlaad()
 }
 
@@ -553,9 +572,9 @@ export async function verwijderSlaap(id: number) {
 // ---------------------------------------------------------------------------
 export async function voegHuilToe(input: HuilInput) {
   const d = huilSchema.parse(input)
-  await db.insert(huilen).values({
-    start: inputNaarDatum(d.start),
-    einde: inputNaarDatum(d.einde),
+  await insertOwn("huilen", {
+    start: inputNaarDatum(d.start).toISOString(),
+    einde: inputNaarDatum(d.einde).toISOString(),
     duurMinuten: duurInMinuten(d.start, d.einde),
     oorzaak: d.oorzaak || null,
     troost: d.troost || null,
@@ -580,7 +599,7 @@ export async function werkHuilBij(id: number, input: HuilInput) {
 }
 
 export async function verwijderHuil(id: number) {
-  await db.delete(huilen).where(eq(huilen.id, id))
+  await deleteOwn("huilen", id)
   herlaad()
 }
 
@@ -589,8 +608,8 @@ export async function verwijderHuil(id: number) {
 // ---------------------------------------------------------------------------
 export async function voegKolfToe(input: KolfInput) {
   const d = kolfSchema.parse(input)
-  await db.insert(kolven).values({
-    datumTijd: inputNaarDatum(d.datumTijd),
+  await insertOwn("kolven", {
+    datumTijd: inputNaarDatum(d.datumTijd).toISOString(),
     borst: d.borst,
     hoeveelheidMl: d.hoeveelheidMl,
     notitie: d.notitie || null,
@@ -614,7 +633,7 @@ export async function werkKolfBij(id: number, input: KolfInput) {
 }
 
 export async function verwijderKolf(id: number) {
-  await db.delete(kolven).where(eq(kolven.id, id))
+  await deleteOwn("kolven", id)
   herlaad()
 }
 
@@ -624,34 +643,34 @@ export async function verwijderKolf(id: number) {
 export async function verwijderRegistratie(soort: Soort, id: number) {
   switch (soort) {
     case "voeding":
-      await db.delete(voedingen).where(eq(voedingen.id, id))
+  await deleteOwn("voedingen", id)
       break
     case "luier":
-      await db.delete(luiers).where(eq(luiers.id, id))
+await deleteOwn("luiers", id)
       break
     case "temperatuur":
-      await db.delete(temperaturen).where(eq(temperaturen.id, id))
+await deleteOwn("temperaturen", id)
       break
     case "boertje":
-      await db.delete(boertjesSpugen).where(eq(boertjesSpugen.id, id))
+await deleteOwn("boertjesSpugen", id)
       break
     case "vitamine":
-      await db.delete(vitamines).where(eq(vitamines.id, id))
+await deleteOwn("vitamines", id)
       break
     case "medicatie":
-      await db.delete(medicatie).where(eq(medicatie.id, id))
+await deleteOwn("medicatie", id)
       break
     case "groei":
-      await db.delete(groei).where(eq(groei.id, id))
+await deleteOwn("groei", id)
       break
     case "slapen":
-      await db.delete(slapen).where(eq(slapen.id, id))
+await deleteOwn("slapen", id)
       break
     case "huilen":
-      await db.delete(huilen).where(eq(huilen.id, id))
+await deleteOwn("huilen", id)
       break
     case "kolven":
-      await db.delete(kolven).where(eq(kolven.id, id))
+await deleteOwn("kolven", id)
       break
   }
   herlaad()
