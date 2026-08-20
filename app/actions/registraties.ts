@@ -404,6 +404,14 @@ export async function verwijderBoertje(id: number) {
   herlaad()
 }
 
+export async function voegSpugenToe(input: BoertjeInput) {
+  return voegBoertjeToe(input)
+}
+
+export async function werkSpugenBij(id: number, input: BoertjeInput) {
+  return werkBoertjeBij(id, input)
+}
+
 // ---------------------------------------------------------------------------
 // Vitamines
 // ---------------------------------------------------------------------------
