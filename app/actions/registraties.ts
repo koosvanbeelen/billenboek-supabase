@@ -1,20 +1,6 @@
 "use server"
 
-import { eq } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
-import { db } from "@/lib/db"
-import {
-  boertjesSpugen,
-  groei,
-  huilen,
-  kolven,
-  luiers,
-  medicatie,
-  slapen,
-  temperaturen,
-  vitamines,
-  voedingen,
-} from "@/lib/db/schema"
 import { createClient as createSupabaseClient } from "@/lib/supabase/server"
 import { dagGrenzen, datumNaarInput, duurInMinuten, inputNaarDatum } from "@/lib/datum"
 import type {
@@ -377,14 +363,11 @@ export async function voegTemperatuurToe(input: TemperatuurInput) {
 
 export async function werkTemperatuurBij(id: number, input: TemperatuurInput) {
   const d = temperatuurSchema.parse(input)
-  await db
-    .update(temperaturen)
-    .set({
-      datumTijd: inputNaarDatum(d.datumTijd),
-      temperatuur: d.temperatuur.toFixed(1),
-      bijgewerktOp: new Date(),
-    })
-    .where(eq(temperaturen.id, id))
+  await updateOwn("temperaturen", id, {
+    datumTijd: inputNaarDatum(d.datumTijd).toISOString(),
+    temperatuur: d.temperatuur.toFixed(1),
+    bijgewerktOp: new Date().toISOString(),
+  })
   herlaad()
 }
 
@@ -407,14 +390,11 @@ export async function voegBoertjeToe(input: BoertjeInput) {
 
 export async function werkBoertjeBij(id: number, input: BoertjeInput) {
   const d = boertjeSchema.parse(input)
-  await db
-    .update(boertjesSpugen)
-    .set({
-      datumTijd: inputNaarDatum(d.datumTijd),
-      notitie: d.notitie || null,
-      bijgewerktOp: new Date(),
-    })
-    .where(eq(boertjesSpugen.id, id))
+  await updateOwn("boertjesSpugen", id, {
+    datumTijd: inputNaarDatum(d.datumTijd).toISOString(),
+    notitie: d.notitie || null,
+    bijgewerktOp: new Date().toISOString(),
+  })
   herlaad()
 }
 
@@ -446,15 +426,12 @@ export async function voegVitamineToe(input: VitamineInput) {
 
 export async function werkVitamineBij(id: number, input: VitamineInput) {
   const d = vitamineSchema.parse(input)
-  await db
-    .update(vitamines)
-    .set({
-      datumTijd: inputNaarDatum(d.datumTijd),
-      vitamineK: d.vitamineK,
-      vitamineD: d.vitamineD,
-      bijgewerktOp: new Date(),
-    })
-    .where(eq(vitamines.id, id))
+  await updateOwn("vitamines", id, {
+    datumTijd: inputNaarDatum(d.datumTijd).toISOString(),
+    vitamineK: d.vitamineK,
+    vitamineD: d.vitamineD,
+    bijgewerktOp: new Date().toISOString(),
+  })
   herlaad()
 }
 
@@ -479,16 +456,13 @@ export async function voegMedicatieToe(input: MedicatieInput) {
 
 export async function werkMedicatieBij(id: number, input: MedicatieInput) {
   const d = medicatieSchema.parse(input)
-  await db
-    .update(medicatie)
-    .set({
-      datumTijd: inputNaarDatum(d.datumTijd),
-      naam: d.naam,
-      dosering: d.dosering || null,
-      notitie: d.notitie || null,
-      bijgewerktOp: new Date(),
-    })
-    .where(eq(medicatie.id, id))
+  await updateOwn("medicatie", id, {
+    datumTijd: inputNaarDatum(d.datumTijd).toISOString(),
+    naam: d.naam,
+    dosering: d.dosering || null,
+    notitie: d.notitie || null,
+    bijgewerktOp: new Date().toISOString(),
+  })
   herlaad()
 }
 
@@ -513,16 +487,13 @@ export async function voegGroeiToe(input: GroeiInput) {
 
 export async function werkGroeiBij(id: number, input: GroeiInput) {
   const d = groeiSchema.parse(input)
-  await db
-    .update(groei)
-    .set({
-      datumTijd: inputNaarDatum(d.datumTijd),
-      gewichtKg: d.gewichtKg !== undefined ? d.gewichtKg.toFixed(2) : null,
-      lengteCm: d.lengteCm !== undefined ? d.lengteCm.toFixed(1) : null,
-      opmerking: d.opmerking || null,
-      bijgewerktOp: new Date(),
-    })
-    .where(eq(groei.id, id))
+  await updateOwn("groei", id, {
+    datumTijd: inputNaarDatum(d.datumTijd).toISOString(),
+    gewichtKg: d.gewichtKg !== undefined ? d.gewichtKg.toFixed(2) : null,
+    lengteCm: d.lengteCm !== undefined ? d.lengteCm.toFixed(1) : null,
+    opmerking: d.opmerking || null,
+    bijgewerktOp: new Date().toISOString(),
+  })
   herlaad()
 }
 
@@ -548,17 +519,14 @@ export async function voegSlaapToe(input: SlaapInput) {
 
 export async function werkSlaapBij(id: number, input: SlaapInput) {
   const d = slaapSchema.parse(input)
-  await db
-    .update(slapen)
-    .set({
-      start: inputNaarDatum(d.start),
-      einde: inputNaarDatum(d.einde),
-      duurMinuten: duurInMinuten(d.start, d.einde),
-      locatie: d.locatie || null,
-      notitie: d.notitie || null,
-      bijgewerktOp: new Date(),
-    })
-    .where(eq(slapen.id, id))
+  await updateOwn("slapen", id, {
+    start: inputNaarDatum(d.start).toISOString(),
+    einde: inputNaarDatum(d.einde).toISOString(),
+    duurMinuten: duurInMinuten(d.start, d.einde),
+    locatie: d.locatie || null,
+    notitie: d.notitie || null,
+    bijgewerktOp: new Date().toISOString(),
+  })
   herlaad()
 }
 
@@ -584,17 +552,14 @@ export async function voegHuilToe(input: HuilInput) {
 
 export async function werkHuilBij(id: number, input: HuilInput) {
   const d = huilSchema.parse(input)
-  await db
-    .update(huilen)
-    .set({
-      start: inputNaarDatum(d.start),
-      einde: inputNaarDatum(d.einde),
-      duurMinuten: duurInMinuten(d.start, d.einde),
-      oorzaak: d.oorzaak || null,
-      troost: d.troost || null,
-      bijgewerktOp: new Date(),
-    })
-    .where(eq(huilen.id, id))
+  await updateOwn("huilen", id, {
+    start: inputNaarDatum(d.start).toISOString(),
+    einde: inputNaarDatum(d.einde).toISOString(),
+    duurMinuten: duurInMinuten(d.start, d.einde),
+    oorzaak: d.oorzaak || null,
+    troost: d.troost || null,
+    bijgewerktOp: new Date().toISOString(),
+  })
   herlaad()
 }
 
@@ -619,16 +584,13 @@ export async function voegKolfToe(input: KolfInput) {
 
 export async function werkKolfBij(id: number, input: KolfInput) {
   const d = kolfSchema.parse(input)
-  await db
-    .update(kolven)
-    .set({
-      datumTijd: inputNaarDatum(d.datumTijd),
-      borst: d.borst,
-      hoeveelheidMl: d.hoeveelheidMl,
-      notitie: d.notitie || null,
-      bijgewerktOp: new Date(),
-    })
-    .where(eq(kolven.id, id))
+  await updateOwn("kolven", id, {
+    datumTijd: inputNaarDatum(d.datumTijd).toISOString(),
+    borst: d.borst,
+    hoeveelheidMl: d.hoeveelheidMl,
+    notitie: d.notitie || null,
+    bijgewerktOp: new Date().toISOString(),
+  })
   herlaad()
 }
 
