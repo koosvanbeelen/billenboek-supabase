@@ -1,9 +1,7 @@
 "use server"
 
-import { voedingen, luiers, temperaturen } from "@/lib/db/schema"
-import { db } from "@/lib/db"
-import { vandaagDatum, dagGrenzen } from "@/lib/datum"
-import { and, gte, lte } from "drizzle-orm"
+import { createClient } from "@/lib/supabase/server"
+import { vandaagDatum } from "@/lib/datum"
 
 export type DagSamenvatting = {
   datum: string // "yyyy-MM-dd"
@@ -28,23 +26,24 @@ export async function getGeschiedenis(): Promise<DagSamenvatting[]> {
   const vanDatum = new Date(zestigDagenGeleden + "T00:00:00Z")
   const totDatum = new Date(vandaag + "T23:59:59Z")
 
-  // Na elkaar i.p.v. gelijktijdig: zie de toelichting in
-  // app/actions/registraties.ts — deze Neon-verbinding blijkt gevoelig
-  // voor meerdere gelijktijdige queries.
-  const vRows = await db
-    .select()
-    .from(voedingen)
-    .where(and(gte(voedingen.datumTijd, vanDatum), lte(voedingen.datumTijd, totDatum)))
-  const lRows = await db
-    .select()
-    .from(luiers)
-    .where(and(gte(luiers.datumTijd, vanDatum), lte(luiers.datumTijd, totDatum)))
-  const tRows = await db
-    .select()
-    .from(temperaturen)
-    .where(
-      and(gte(temperaturen.datumTijd, vanDatum), lte(temperaturen.datumTijd, totDatum)),
-    )
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error("Niet ingelogd")
+
+  const query = async (table: string) => {
+    const { data, error } = await supabase
+      .from(table)
+      .select("*")
+      .eq("user_id", user.id)
+      .gte("datumTijd", vanDatum.toISOString())
+      .lte("datumTijd", totDatum.toISOString())
+    if (error) throw error
+    return data ?? []
+  }
+
+  const vRows = await query("voedingen")
+  const lRows = await query("luiers")
+  const tRows = await query("temperaturen")
 
   // Groepeer per dag
   const perDag = new Map<
@@ -60,7 +59,7 @@ export async function getGeschiedenis(): Promise<DagSamenvatting[]> {
 
   // Voedingen
   for (const v of vRows) {
-    const d = v.datumTijd.toISOString().slice(0, 10)
+    const d = new Date(v.datumTijd).toISOString().slice(0, 10)
     const entry = perDag.get(d) ?? {
       voedingenAantal: 0,
       voedingenMinuten: 0,
@@ -75,7 +74,7 @@ export async function getGeschiedenis(): Promise<DagSamenvatting[]> {
 
   // Luiers
   for (const l of lRows) {
-    const d = l.datumTijd.toISOString().slice(0, 10)
+    const d = new Date(l.datumTijd).toISOString().slice(0, 10)
     const entry = perDag.get(d) ?? {
       voedingenAantal: 0,
       voedingenMinuten: 0,
@@ -90,7 +89,7 @@ export async function getGeschiedenis(): Promise<DagSamenvatting[]> {
 
   // Temperaturen (numeric field wordt als string opgeslagen in Drizzle)
   for (const t of tRows) {
-    const d = t.datumTijd.toISOString().slice(0, 10)
+    const d = new Date(t.datumTijd).toISOString().slice(0, 10)
     const entry = perDag.get(d) ?? {
       voedingenAantal: 0,
       voedingenMinuten: 0,

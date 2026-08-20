@@ -41,6 +41,8 @@ export type BoertjeItem = {
   notitie: string | null
 }
 
+export type SpugenItem = BoertjeItem
+
 export type VitamineItem = {
   id: number
   datumTijd: string
