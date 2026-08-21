@@ -16,7 +16,7 @@ function VerstuurKnop() {
   return <Button type="submit" size="lg" className="h-14 w-full text-base" disabled={pending}>{pending ? <Spinner data-icon="inline-start" /> : null}Inloggen</Button>
 }
 
-export function LoginForm() {
+export function LoginForm({ next = "/" }: { next?: string }) {
   const [state, formAction] = useActionState(inloggen, undefined)
   return (
     <Card className="w-full max-w-sm rounded-3xl shadow-sm">
@@ -26,7 +26,7 @@ export function LoginForm() {
         <CardDescription>Log in om de gegevens van je baby veilig te bekijken.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="flex flex-col gap-5">
+        <form action={formAction} className="flex flex-col gap-5"><input type="hidden" name="next" value={next} />
           <Field><FieldLabel htmlFor="email">E-mailadres</FieldLabel><Input id="email" name="email" type="email" autoComplete="email" autoFocus required /></Field>
           <Field data-invalid={state?.fout ? true : undefined}><FieldLabel htmlFor="password">Wachtwoord</FieldLabel><Input id="password" name="password" type="password" autoComplete="current-password" required aria-invalid={state?.fout ? true : undefined} />{state?.fout ? <p className="text-sm text-destructive" role="alert">{state.fout}</p> : null}</Field>
           <VerstuurKnop />

@@ -4,12 +4,17 @@ import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 
+function veiligeNext(value: string) {
+  return value.startsWith("/") && !value.startsWith("//") ? value : "/"
+}
+
 export async function inloggen(
   _prevState: { fout?: string } | undefined,
   formData: FormData,
 ): Promise<{ fout?: string }> {
   const email = String(formData.get("email") ?? "").trim()
   const password = String(formData.get("password") ?? "")
+  const next = veiligeNext(String(formData.get("next") ?? ""))
   if (!email || !password) return { fout: "Vul je e-mailadres en wachtwoord in." }
 
   const supabase = await createClient()
@@ -20,7 +25,7 @@ export async function inloggen(
     }
     return { fout: "Ongeldig e-mailadres of wachtwoord." }
   }
-  redirect("/")
+  redirect(next)
 }
 
 export async function registreren(
@@ -29,6 +34,7 @@ export async function registreren(
 ): Promise<{ fout?: string; succes?: string }> {
   const email = String(formData.get("email") ?? "").trim()
   const password = String(formData.get("password") ?? "")
+  const next = veiligeNext(String(formData.get("next") ?? ""))
   if (!email || password.length < 8) return { fout: "Gebruik een geldig e-mailadres en minimaal 8 tekens." }
 
   const supabase = await createClient()
@@ -44,7 +50,7 @@ export async function registreren(
     },
   })
   if (error) return { fout: "Registreren is niet gelukt. Controleer je gegevens." }
-  if (data.session) redirect("/")
+  if (data.session) redirect(next)
   return { succes: "Controleer je inbox om je e-mailadres te bevestigen." }
 }
 
