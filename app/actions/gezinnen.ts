@@ -13,7 +13,10 @@ export async function maakGezinAan(naam: string) {
   const { data, error } = await supabase.rpc("create_family_with_invite", {
     family_name: naam.trim(), invite_code: code(), expires_at: new Date(Date.now() + 30 * 86400000).toISOString(),
   })
-  if (error) throw new Error("Gezin aanmaken lukt niet.")
+  if (error) {
+    console.error("[v0] maakGezinAan RPC fout", error)
+    throw new Error(process.env.NODE_ENV === "development" ? `Gezin aanmaken mislukt: ${error.message}` : "We konden je gezin niet aanmaken. Probeer het opnieuw.")
+  }
   revalidatePath("/", "layout")
   return data as { gezin_id: string; code: string }
 }
@@ -21,7 +24,10 @@ export async function maakGezinAan(naam: string) {
 export async function neemDeelMetCode(value: string) {
   const supabase = await createClient()
   const { data, error } = await supabase.rpc("join_family_with_code", { invite_code: value.trim() })
-  if (error) throw new Error("Deze uitnodigingscode is ongeldig of verlopen.")
+  if (error) {
+    console.error("[v0] neemDeelMetCode RPC fout", error)
+    throw new Error(process.env.NODE_ENV === "development" ? `Deelnemen mislukt: ${error.message}` : "Deze uitnodigingscode is ongeldig of verlopen.")
+  }
   revalidatePath("/", "layout")
   return data as string
 }
