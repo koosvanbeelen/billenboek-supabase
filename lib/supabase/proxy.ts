@@ -12,7 +12,7 @@ export async function updateSession(request: NextRequest) {
     process.env.SUPABASE_ANON_KEY
 
   const { pathname } = request.nextUrl
-  const publicRoute = pathname === "/login" || pathname === "/registreren" || pathname.startsWith("/auth/")
+  const publicRoute = pathname === "/login" || pathname === "/registreren" || pathname === "/gezin/deelnemen" || pathname === "/gezin/onboarding" || pathname.startsWith("/auth/")
   if (!supabaseUrl || !supabaseKey) {
     if (publicRoute) return response
     return NextResponse.redirect(new URL("/login", request.url))
