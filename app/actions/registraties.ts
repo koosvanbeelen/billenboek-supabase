@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient as createSupabaseClient } from "@/lib/supabase/server"
+import { getActiefGezinId } from "@/lib/supabase/gezin"
 import { dagGrenzen, datumNaarInput, duurInMinuten, inputNaarDatum } from "@/lib/datum"
 import type {
   BoertjeItem,
@@ -50,47 +51,55 @@ async function getOwnedClient() {
   const supabase = await createSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error("Niet ingelogd")
-  return { supabase, user }
+  const gezinId = await getActiefGezinId()
+  return { supabase, user, gezinId }
 }
 
 async function insertOwn(table: string, values: Record<string, unknown>) {
-  const { supabase, user } = await getOwnedClient()
-  const { error } = await supabase.from(table).insert({ ...values, user_id: user.id })
+  const { supabase, user, gezinId } = await getOwnedClient()
+  const { error } = await supabase.from(tableName(table)).insert({ ...toDbValues(values), user_id: user.id, gezin_id: gezinId })
   if (error) throw error
 }
 
 async function updateOwn(table: string, id: number, values: Record<string, unknown>) {
-  const { supabase, user } = await getOwnedClient()
-  const { error } = await supabase.from(table).update(values).eq("id", id).eq("user_id", user.id)
+  const { supabase, gezinId } = await getOwnedClient()
+  const { error } = await supabase.from(tableName(table)).update(toDbValues(values)).eq("id", id).eq("gezin_id", gezinId)
   if (error) throw error
 }
 
 async function deleteOwn(table: string, id: number) {
-  const { supabase, user } = await getOwnedClient()
-  const { error } = await supabase.from(table).delete().eq("id", id).eq("user_id", user.id)
+  const { supabase, gezinId } = await getOwnedClient()
+  const { error } = await supabase.from(tableName(table)).delete().eq("id", id).eq("gezin_id", gezinId)
   if (error) throw error
 }
 
-const iso = (d: Date) => d.toISOString()
+const iso = (d: Date | string) => new Date(d).toISOString()
+
+const tableName = (table: string) => table === "boertjesSpugen" ? "spugen" : table
+const columnName = (column: string) => column.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
+const toDbValues = (values: Record<string, unknown>) => Object.fromEntries(
+  Object.entries(values).map(([key, value]) => [columnName(key), value]),
+)
+const fromDbRow = (row: Record<string, any>) => Object.fromEntries(
+  Object.entries(row).map(([key, value]) => [key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase()), value]),
+)
 
 // ---------------------------------------------------------------------------
 // Ophalen van een volledige dag
 // ---------------------------------------------------------------------------
 export async function getDagGegevens(datum: string): Promise<DagGegevens> {
   const { van, tot } = dagGrenzen(datum)
-  const supabase = await createSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error("Niet ingelogd")
+  const { supabase, gezinId } = await getOwnedClient()
 
   const dagQuery = async (table: string, timeColumn: string): Promise<any[]> => {
     const { data, error } = await supabase
-      .from(table)
+      .from(tableName(table))
       .select("*")
-      .eq("user_id", user.id)
-      .gte(timeColumn, van.toISOString())
+      .eq("gezin_id", gezinId)
+      .gte(columnName(timeColumn), van.toISOString())
       .lte(timeColumn, tot.toISOString())
     if (error) throw error
-    return data ?? []
+    return (data ?? []).map((row) => fromDbRow(row))
   }
 
   const vRows = await dagQuery("voedingen", "datumTijd")
@@ -106,13 +115,13 @@ export async function getDagGegevens(datum: string): Promise<DagGegevens> {
 
   const historyQuery = async (table: string) => {
     const { data, error } = await supabase
-      .from(table)
-      .select("datumTijd")
-      .eq("user_id", user.id)
-      .order("datumTijd", { ascending: false })
+      .from(tableName(table))
+      .select("datum_tijd")
+      .eq("gezin_id", gezinId)
+      .order("datum_tijd", { ascending: false })
       .limit(1)
     if (error) throw error
-    return data ?? []
+    return (data ?? []).map((row) => fromDbRow(row))
   }
   const laatsteVoedingRij = await historyQuery("voedingen")
   const laatsteLuierRij = await historyQuery("luiers")

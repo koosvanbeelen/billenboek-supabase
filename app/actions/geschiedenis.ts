@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { getActiefGezinId } from "@/lib/supabase/gezin"
 import { vandaagDatum } from "@/lib/datum"
 
 export type DagSamenvatting = {
@@ -30,15 +31,18 @@ export async function getGeschiedenis(): Promise<DagSamenvatting[]> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error("Niet ingelogd")
 
-  const query = async (table: string) => {
+  const gezinId = await getActiefGezinId()
+  const query = async (table: string): Promise<Record<string, any>[]> => {
     const { data, error } = await supabase
       .from(table)
       .select("*")
-      .eq("user_id", user.id)
-      .gte("datumTijd", vanDatum.toISOString())
-      .lte("datumTijd", totDatum.toISOString())
+      .eq("gezin_id", gezinId)
+      .gte("datum_tijd", vanDatum.toISOString())
+      .lte("datum_tijd", totDatum.toISOString())
     if (error) throw error
-    return data ?? []
+    return (data ?? []).map((row) => Object.fromEntries(
+      Object.entries(row).map(([key, value]) => [key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase()), value]),
+    ))
   }
 
   const vRows = await query("voedingen")
