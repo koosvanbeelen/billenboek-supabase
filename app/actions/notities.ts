@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { getActiefGezinId } from "@/lib/supabase/gezin"
 import { toggleCheckboxRegel } from "@/lib/notitie-opmaak"
 import type { NotitieItem } from "@/lib/types"
 import { notitieSchema } from "@/lib/validations"
@@ -10,11 +11,12 @@ async function getUserScopedClient() {
   const supabase = await createClient()
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error || !user) throw new Error("Je moet ingelogd zijn.")
-  return { supabase, user }
+  const gezinId = await getActiefGezinId()
+  return { supabase, user, gezinId }
 }
 
 export async function getNotities(): Promise<NotitieItem[]> {
-  const { supabase } = await getUserScopedClient()
+  const { supabase, gezinId } = await getUserScopedClient()
   const { data, error } = await supabase
     .from("notities")
     .select("id, datum_tijd, notitie")
@@ -29,10 +31,11 @@ export async function getNotities(): Promise<NotitieItem[]> {
 
 export async function voegNotitieToe(input: { notitie: string }) {
   const d = notitieSchema.parse(input)
-  const { supabase, user } = await getUserScopedClient()
+  const { supabase, user, gezinId } = await getUserScopedClient()
   const { error } = await supabase.from("notities").insert({
     notitie: d.notitie,
     user_id: user.id,
+    gezin_id: gezinId,
   })
   if (error) throw new Error("Notitie kon niet worden opgeslagen.")
   revalidatePath("/notities")
@@ -40,30 +43,30 @@ export async function voegNotitieToe(input: { notitie: string }) {
 
 export async function werkNotitieBij(id: number, input: { notitie: string }) {
   const d = notitieSchema.parse(input)
-  const { supabase, user } = await getUserScopedClient()
+  const { supabase, user, gezinId } = await getUserScopedClient()
   const { error } = await supabase
     .from("notities")
     .update({ notitie: d.notitie })
     .eq("id", id)
-    .eq("user_id", user.id)
+    .eq("gezin_id", gezinId)
   if (error) throw new Error("Notitie kon niet worden bijgewerkt.")
   revalidatePath("/notities")
 }
 
 export async function verwijderNotitie(id: number) {
-  const { supabase, user } = await getUserScopedClient()
-  const { error } = await supabase.from("notities").delete().eq("id", id).eq("user_id", user.id)
+  const { supabase, user, gezinId } = await getUserScopedClient()
+  const { error } = await supabase.from("notities").delete().eq("id", id).eq("gezin_id", gezinId)
   if (error) throw new Error("Notitie kon niet worden verwijderd.")
   revalidatePath("/notities")
 }
 
 export async function vinkNotitieRegelAf(id: number, regelIndex: number) {
-  const { supabase, user } = await getUserScopedClient()
+  const { supabase, user, gezinId } = await getUserScopedClient()
   const { data: row, error } = await supabase
     .from("notities")
     .select("notitie")
     .eq("id", id)
-    .eq("user_id", user.id)
+    .eq("gezin_id", gezinId)
     .single()
   if (error || !row) return
 
@@ -72,7 +75,7 @@ export async function vinkNotitieRegelAf(id: number, regelIndex: number) {
     .from("notities")
     .update({ notitie: nieuweTekst })
     .eq("id", id)
-    .eq("user_id", user.id)
+    .eq("gezin_id", gezinId)
   if (updateError) throw new Error("Checklist kon niet worden bijgewerkt.")
   revalidatePath("/notities")
 }
