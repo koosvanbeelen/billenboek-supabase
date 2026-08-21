@@ -3,6 +3,7 @@ import { isIngelogd } from "@/lib/auth"
 import { BottomNav } from "@/components/bottom-nav"
 import { SideNav } from "@/components/side-nav"
 import { Header } from "@/components/header"
+import { getActiefGezinId } from "@/lib/supabase/gezin"
 
 export default async function AppLayout({
   children,
@@ -11,6 +12,11 @@ export default async function AppLayout({
 }) {
   if (!(await isIngelogd())) {
     redirect("/login")
+  }
+  try {
+    await getActiefGezinId()
+  } catch {
+    redirect("/gezin/onboarding")
   }
 
   return (
