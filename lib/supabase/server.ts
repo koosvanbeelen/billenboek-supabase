@@ -25,8 +25,9 @@ export async function createClient() {
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
-          } catch {
-            // Server Components kunnen cookies niet altijd schrijven; de proxy ververst ze.
+          } catch (error) {
+            console.error("[v0] Supabase cookies konden niet worden opgeslagen", error)
+            // Server Components kunnen cookies niet schrijven; server actions en de proxy wel.
           }
         },
       },
