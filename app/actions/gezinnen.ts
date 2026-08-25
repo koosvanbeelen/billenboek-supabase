@@ -10,6 +10,8 @@ function code() {
 
 export async function maakGezinAan(naam: string) {
   const supabase = await createClient()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) throw new Error("Je sessie is verlopen. Log opnieuw in.")
   const { data, error } = await supabase.rpc("create_family_with_invite", {
     family_name: naam.trim(), invite_code: code(), expires_at: new Date(Date.now() + 30 * 86400000).toISOString(),
   })
