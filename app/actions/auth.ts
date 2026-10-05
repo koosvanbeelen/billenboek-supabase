@@ -3,10 +3,7 @@
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-
-function veiligeNext(value: string) {
-  return value.startsWith("/") && !value.startsWith("//") ? value : "/"
-}
+import { veiligeNext } from "@/lib/auth"
 
 export async function inloggen(
   _prevState: { fout?: string } | undefined,
@@ -46,7 +43,7 @@ export async function registreren(
     email,
     password,
     options: {
-      emailRedirectTo: `${origin}/auth/callback`,
+      emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
     },
   })
   if (error) return { fout: "Registreren is niet gelukt. Controleer je gegevens." }
