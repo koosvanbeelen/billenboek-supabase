@@ -31,7 +31,7 @@ export function LoginForm({ next = "/" }: { next?: string }) {
           <Field data-invalid={state?.fout ? true : undefined}><FieldLabel htmlFor="password">Wachtwoord</FieldLabel><Input id="password" name="password" type="password" autoComplete="current-password" required aria-invalid={state?.fout ? true : undefined} />{state?.fout ? <p className="text-sm text-destructive" role="alert">{state.fout}</p> : null}</Field>
           <VerstuurKnop />
         </form>
-        <p className="mt-5 text-center text-sm text-muted-foreground">Nog geen account? <Link href="/registreren" className="font-medium text-primary underline-offset-4 hover:underline">Registreren</Link></p>
+        <p className="mt-5 text-center text-sm text-muted-foreground">Nog geen account? <Link href={`/registreren?next=${encodeURIComponent(next)}`} className="font-medium text-primary underline-offset-4 hover:underline">Registreren</Link></p>
       </CardContent>
     </Card>
   )

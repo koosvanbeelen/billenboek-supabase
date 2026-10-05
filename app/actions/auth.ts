@@ -46,7 +46,7 @@ export async function registreren(
     email,
     password,
     options: {
-      emailRedirectTo: `${origin}/auth/callback`,
+      emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
     },
   })
   if (error) return { fout: "Registreren is niet gelukt. Controleer je gegevens." }
