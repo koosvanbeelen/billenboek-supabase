@@ -14,7 +14,5 @@ export async function GET(request: Request) {
     console.error("[auth/callback] code uitwisselen mislukt", error.message)
   }
 
-  // Link verlopen, al gebruikt, of geopend in een andere browser dan waar je
-  // je registreerde: laat het zien in plaats van stil terug te vallen.
-  return NextResponse.redirect(new URL("/login?fout=bevestiging", url.origin))
+  return NextResponse.redirect(new URL(`/login?fout=bevestiging&next=${encodeURIComponent(next)}`, url.origin))
 }
