@@ -25,10 +25,12 @@ export async function maakGezinAan(naam: string) {
 
 export async function neemDeelMetCode(value: string) {
   const supabase = await createClient()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) throw new Error("Je sessie is verlopen. Log opnieuw in.")
   const { data, error } = await supabase.rpc("join_family_with_code", { invite_code: value.trim() })
   if (error) {
     console.error("[v0] neemDeelMetCode RPC fout", error)
-    throw new Error(process.env.NODE_ENV === "development" ? `Deelnemen mislukt: ${error.message}` : "Deze uitnodigingscode is ongeldig of verlopen.")
+    throw new Error(`Deelnemen mislukt: ${error.message}`)
   }
   revalidatePath("/", "layout")
   return data as string
