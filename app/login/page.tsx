@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { isIngelogd, veiligeNext } from "@/lib/auth"
 import { LoginForm } from "@/components/login-form"
+import { AuthFooter, AuthShell } from "@/components/auth-shell"
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; fout?: string }> }) {
   const params = await searchParams
@@ -9,7 +10,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   }
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-background p-6">
+    <AuthShell eyebrow="Welkom terug" title="Log in op jullie Billenboek" description="Ga verder waar je gebleven was en houd de dag samen overzichtelijk.">
       <LoginForm
         next={veiligeNext(params.next)}
         melding={
@@ -18,6 +19,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             : undefined
         }
       />
-    </main>
+      <AuthFooter />
+    </AuthShell>
   )
 }

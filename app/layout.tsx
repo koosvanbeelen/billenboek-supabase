@@ -14,20 +14,8 @@ const nunito = Nunito({
 })
 
 export const metadata: Metadata = {
-  title: "Billenboek",
-  description: "Houd eenvoudig alle verzorgingsmomenten van je baby bij.",
-  generator: "v0.app",
-  applicationName: "Billenboek",
-  manifest: "/manifest.webmanifest",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Billenboek",
-  },
-  icons: {
-    icon: "/icons/icon-192.png",
-    apple: "/icons/apple-touch-icon.png",
-  },
+  title: "Billenboek | Samen overzicht houden",
+  description: "Een veilige, gedeelde plek voor ouders en verzorgers om het ritme van jullie gezin bij te houden.",
 }
 
 export const viewport: Viewport = {
