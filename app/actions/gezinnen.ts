@@ -17,7 +17,12 @@ export async function maakGezinAan(naam: string) {
   })
   if (error) {
     console.error("[v0] maakGezinAan RPC fout", error)
-    throw new Error(process.env.NODE_ENV === "development" ? `Gezin aanmaken mislukt: ${error.message}` : "We konden je gezin niet aanmaken. Probeer het opnieuw.")
+    const messages: Record<string, string> = {
+      already_in_family: "Je bent al aan een gezin gekoppeld.",
+      family_name_too_short: "Kies een gezinsnaam van minimaal twee tekens.",
+      not_authenticated: "Je sessie is verlopen. Log opnieuw in.",
+    }
+    throw new Error(messages[error.message] ?? "We konden je gezin niet aanmaken. Probeer het opnieuw.")
   }
   revalidatePath("/", "layout")
   return data as { gezin_id: string; code: string }
@@ -30,7 +35,12 @@ export async function neemDeelMetCode(value: string) {
   const { data, error } = await supabase.rpc("join_family_with_code", { invite_code: value.trim() })
   if (error) {
     console.error("[v0] neemDeelMetCode RPC fout", error)
-    throw new Error(`Deelnemen mislukt: ${error.message}`)
+    const messages: Record<string, string> = {
+      already_in_family: "Je bent al aan een gezin gekoppeld.",
+      invalid_or_expired_code: "Deze uitnodigingscode is ongeldig of verlopen.",
+      not_authenticated: "Je sessie is verlopen. Log opnieuw in.",
+    }
+    throw new Error(messages[error.message] ?? "We konden je niet aan het gezin koppelen. Probeer het opnieuw.")
   }
   revalidatePath("/", "layout")
   return data as string
