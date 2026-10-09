@@ -52,8 +52,10 @@ export function vandaagDatum(): string {
   return `${o.jaar}-${pad(o.maand)}-${pad(o.dag)}`
 }
 
-// Opgeslagen Date -> "yyyy-MM-ddTHH:mm" (UTC-componenten = wandkloktijd).
-export function datumNaarInput(d: Date): string {
+// Opgeslagen moment -> "yyyy-MM-ddTHH:mm" (UTC-componenten = wandkloktijd).
+// Accepteert ook een ISO-string: Supabase levert timestamps als tekst, niet als Date.
+export function datumNaarInput(waarde: Date | string): string {
+  const d = typeof waarde === "string" ? new Date(waarde) : waarde
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(
     d.getUTCDate(),
   )}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`
