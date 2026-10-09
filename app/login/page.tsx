@@ -10,7 +10,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   }
 
   return (
-    <AuthShell eyebrow="Welkom terug" title="Log in op jullie Billenboek" description="Ga verder waar je gebleven was en houd de dag samen overzichtelijk.">
+    <AuthShell eyebrow="Welkom!" title="Log in op jullie Billenboek" description="Ga verder waar je gebleven was en houd de dag samen overzichtelijk.">
       <LoginForm
         next={veiligeNext(params.next)}
         melding={
