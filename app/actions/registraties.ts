@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { createClient as createSupabaseClient } from "@/lib/supabase/server"
 import { getActiefGezinId } from "@/lib/supabase/gezin"
+import { fromDbRow, toDbRow } from "@/lib/db/mappers"
 import { dagGrenzen, datumNaarInput, duurInMinuten, inputNaarDatum } from "@/lib/datum"
 import type {
   BoertjeItem,
@@ -57,13 +58,13 @@ async function getOwnedClient() {
 
 async function insertOwn(table: string, values: Record<string, unknown>) {
   const { supabase, user, gezinId } = await getOwnedClient()
-  const { error } = await supabase.from(tableName(table)).insert({ ...toDbValues(values), user_id: user.id, gezin_id: gezinId })
+  const { error } = await supabase.from(tableName(table)).insert({ ...toDbRow(tableName(table), values), user_id: user.id, gezin_id: gezinId })
   if (error) throw error
 }
 
 async function updateOwn(table: string, id: number, values: Record<string, unknown>) {
   const { supabase, gezinId } = await getOwnedClient()
-  const { error } = await supabase.from(tableName(table)).update(toDbValues(values)).eq("id", id).eq("gezin_id", gezinId)
+  const { error } = await supabase.from(tableName(table)).update(toDbRow(tableName(table), values)).eq("id", id).eq("gezin_id", gezinId)
   if (error) throw error
 }
 
@@ -76,13 +77,7 @@ async function deleteOwn(table: string, id: number) {
 const iso = (d: Date | string) => new Date(d).toISOString()
 
 const tableName = (table: string) => table === "boertjesSpugen" ? "spugen" : table
-const columnName = (column: string) => column.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
-const toDbValues = (values: Record<string, unknown>) => Object.fromEntries(
-  Object.entries(values).map(([key, value]) => [columnName(key), value]),
-)
-const fromDbRow = (row: Record<string, any>) => Object.fromEntries(
-  Object.entries(row).map(([key, value]) => [key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase()), value]),
-)
+const timeColumn = (table: string) => table === "slapen" || table === "huilen" ? "start" : "datum_tijd"
 
 // ---------------------------------------------------------------------------
 // Ophalen van een volledige dag
@@ -91,27 +86,27 @@ export async function getDagGegevens(datum: string): Promise<DagGegevens> {
   const { van, tot } = dagGrenzen(datum)
   const { supabase, gezinId } = await getOwnedClient()
 
-  const dagQuery = async (table: string, timeColumn: string): Promise<any[]> => {
+  const dagQuery = async (table: string): Promise<any[]> => {
     const { data, error } = await supabase
       .from(tableName(table))
       .select("*")
       .eq("gezin_id", gezinId)
-      .gte(columnName(timeColumn), van.toISOString())
-      .lte(timeColumn, tot.toISOString())
+      .gte(timeColumn(table), van.toISOString())
+      .lte(timeColumn(table), tot.toISOString())
     if (error) throw error
-    return (data ?? []).map((row) => fromDbRow(row))
+    return (data ?? []).map((row) => fromDbRow(tableName(table), row))
   }
 
-  const vRows = await dagQuery("voedingen", "datumTijd")
-  const lRows = await dagQuery("luiers", "datumTijd")
-  const tRows = await dagQuery("temperaturen", "datumTijd")
-  const bRows = await dagQuery("boertjesSpugen", "datumTijd")
-  const viRows = await dagQuery("vitamines", "datumTijd")
-  const mRows = await dagQuery("medicatie", "datumTijd")
-  const gRows = await dagQuery("groei", "datumTijd")
-  const sRows = await dagQuery("slapen", "start")
-  const hRows = await dagQuery("huilen", "start")
-  const kRows = await dagQuery("kolven", "datumTijd")
+  const vRows = await dagQuery("voedingen")
+  const lRows = await dagQuery("luiers")
+  const tRows = await dagQuery("temperaturen")
+  const bRows = await dagQuery("boertjesSpugen")
+  const viRows = await dagQuery("vitamines")
+  const mRows = await dagQuery("medicatie")
+  const gRows = await dagQuery("groei")
+  const sRows = await dagQuery("slapen")
+  const hRows = await dagQuery("huilen")
+  const kRows = await dagQuery("kolven")
 
   const historyQuery = async (table: string) => {
     const { data, error } = await supabase
@@ -121,7 +116,7 @@ export async function getDagGegevens(datum: string): Promise<DagGegevens> {
       .order("datum_tijd", { ascending: false })
       .limit(1)
     if (error) throw error
-    return (data ?? []).map((row) => fromDbRow(row))
+    return data ?? []
   }
   const laatsteVoedingRij = await historyQuery("voedingen")
   const laatsteLuierRij = await historyQuery("luiers")
@@ -282,10 +277,10 @@ export async function getDagGegevens(datum: string): Promise<DagGegevens> {
     slaapMinuten: sRows.reduce((s, r) => s + r.duurMinuten, 0),
     huilMinuten: hRows.reduce((s, r) => s + r.duurMinuten, 0),
     laatsteVoeding: laatsteVoedingRij[0]
-      ? datumNaarInput(laatsteVoedingRij[0].datumTijd)
+      ? datumNaarInput(laatsteVoedingRij[0].datum_tijd)
       : null,
     laatsteLuier: laatsteLuierRij[0]
-      ? datumNaarInput(laatsteLuierRij[0].datumTijd)
+      ? datumNaarInput(laatsteLuierRij[0].datum_tijd)
       : null,
   }
 

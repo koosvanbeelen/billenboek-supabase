@@ -6,6 +6,7 @@ import { getActiefGezinId } from "@/lib/supabase/gezin"
 import { toggleCheckboxRegel } from "@/lib/notitie-opmaak"
 import type { NotitieItem } from "@/lib/types"
 import { notitieSchema } from "@/lib/validations"
+import { notitieFromDb, notitieToDb } from "@/lib/db/mappers"
 
 async function getUserScopedClient() {
   const supabase = await createClient()
@@ -22,18 +23,14 @@ export async function getNotities(): Promise<NotitieItem[]> {
     .select("id, datum_tijd, notitie")
     .order("datum_tijd", { ascending: false })
   if (error) throw new Error("Notities konden niet worden geladen.")
-  return (data ?? []).map((row) => ({
-    id: row.id,
-    datumTijd: row.datum_tijd,
-    notitie: row.notitie,
-  }))
+  return (data ?? []).map(notitieFromDb)
 }
 
 export async function voegNotitieToe(input: { notitie: string }) {
   const d = notitieSchema.parse(input)
   const { supabase, user, gezinId } = await getUserScopedClient()
   const { error } = await supabase.from("notities").insert({
-    notitie: d.notitie,
+    ...notitieToDb({ notitie: d.notitie }),
     user_id: user.id,
     gezin_id: gezinId,
   })
@@ -46,7 +43,7 @@ export async function werkNotitieBij(id: number, input: { notitie: string }) {
   const { supabase, user, gezinId } = await getUserScopedClient()
   const { error } = await supabase
     .from("notities")
-    .update({ notitie: d.notitie })
+    .update(notitieToDb({ notitie: d.notitie }))
     .eq("id", id)
     .eq("gezin_id", gezinId)
   if (error) throw new Error("Notitie kon niet worden bijgewerkt.")
