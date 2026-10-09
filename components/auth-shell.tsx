@@ -10,7 +10,7 @@ export function AuthShell({ children, eyebrow, title, description }: { children:
         <section className="hidden flex-col justify-between bg-primary p-10 text-primary-foreground lg:flex">
           <div>
             <div className="flex items-center gap-3 text-lg font-semibold"><span className="flex size-10 items-center justify-center rounded-xl bg-white/15"><BookHeart className="size-5" /></span>Billenboek</div>
-            <div className="mt-24 max-w-sm"><p className="text-sm font-medium text-primary-foreground/70">Rust in je dag</p><h2 className="mt-3 text-4xl font-semibold tracking-tight">Samen overzicht houden voor de kleine momenten.</h2><p className="mt-5 leading-7 text-primary-foreground/75">Een veilige plek voor ouders en verzorgers om het ritme van jullie gezin bij te houden.</p></div>
+            <div className="mt-24 max-w-sm"><p className="text-sm font-medium text-primary-foreground/70">Inzicht in je dag</p><h2 className="mt-0 text-4xl font-semibold tracking-tight">Samen overzicht houden over de dag van je kleintje.</h2><p className="mt-5 leading-7 text-primary-foreground/75">Een veilige plek voor ouders en verzorgers om het ritme van jullie gezin bij te houden.</p></div>
           </div>
           <div className="flex items-center gap-2 text-sm text-primary-foreground/75"><ShieldCheck className="size-4" />Je gegevens blijven binnen jouw gezin</div>
         </section>
