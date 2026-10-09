@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { getActiefGezinId } from "@/lib/supabase/gezin"
 import { vandaagDatum } from "@/lib/datum"
+import { fromDbRow } from "@/lib/db/mappers"
 
 export type DagSamenvatting = {
   datum: string // "yyyy-MM-dd"
@@ -40,9 +41,7 @@ export async function getGeschiedenis(): Promise<DagSamenvatting[]> {
       .gte("datum_tijd", vanDatum.toISOString())
       .lte("datum_tijd", totDatum.toISOString())
     if (error) throw error
-    return (data ?? []).map((row) => Object.fromEntries(
-      Object.entries(row).map(([key, value]) => [key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase()), value]),
-    ))
+    return (data ?? []).map((row) => fromDbRow(table, row))
   }
 
   const vRows = await query("voedingen")
