@@ -11,6 +11,7 @@ export type TellerId =
   | "poepluier"
   | "plasluier"
   | "totaalLuiers"
+  | "temperatuur"
   | "tijdSindsVoeding"
   | "tijdSindsLuier"
   | "mlGekolfd"
@@ -25,6 +26,7 @@ export const ALLE_TELLERS: TellerId[] = [
   "poepluier",
   "plasluier",
   "totaalLuiers",
+  "temperatuur",
   "tijdSindsVoeding",
   "tijdSindsLuier",
   "mlGekolfd",
@@ -38,9 +40,8 @@ export const MAX_TELLERS = 4
 // bestaande gebruiker na deze update niets ziet veranderen.
 export const STANDAARD_TELLERS: TellerId[] = [
   "voedingenAantal",
-  "borsttijd",
-  "poepluier",
-  "plasluier",
+  "totaalLuiers",
+  "temperatuur",
 ]
 
 function isGeldigeLijst(waarde: unknown): waarde is TellerId[] {

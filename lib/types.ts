@@ -122,6 +122,7 @@ export type DagTellers = {
   luiersAantal: number
   luiersPoep: number
   luiersPlas: number
+  laatsteTemperatuur: number | null
   mlGekolfd: number
   slaapMinuten: number
   huilMinuten: number

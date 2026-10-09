@@ -42,6 +42,10 @@ function waardeVoorTeller(id: TellerId, tellers: DagTellers, nu: string): string
       return String(tellers.luiersPlas)
     case "totaalLuiers":
       return String(tellers.luiersAantal)
+    case "temperatuur":
+      return tellers.laatsteTemperatuur !== null
+        ? `${tellers.laatsteTemperatuur.toFixed(1)}°C`
+        : "—"
     case "tijdSindsVoeding":
       return tellers.laatsteVoeding
         ? formatUuMm(duurInMinuten(tellers.laatsteVoeding, nu))

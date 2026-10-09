@@ -28,7 +28,7 @@ export default async function VandaagPage({
         Vandaag beweegt Notities niet mee, en andersom. Op telefoon/tablet in
         portrait blijft dit gewoon één doorlopende pagina.
       */}
-      <div className="split-view:sticky split-view:top-10 split-view:h-[calc(100dvh-2.5rem)] split-view:overflow-y-auto split-view:overscroll-contain">
+      <div className="split-view:sticky split-view:top-10 split-view:overscroll-contain">
         <VandaagWeergave data={data} />
       </div>
       {/* Notities-paneel: alleen zichtbaar in de gesplitste weergave, naast

@@ -273,6 +273,15 @@ export async function getDagGegevens(datum: string): Promise<DagGegevens> {
     luiersAantal: lRows.length,
     luiersPoep: lRows.filter((r) => r.poep).length,
     luiersPlas: lRows.filter((r) => r.plas).length,
+    laatsteTemperatuur:
+      tRows.length > 0
+        ? Number(
+            [...tRows].sort(
+              (a, b) =>
+                new Date(b.datumTijd).getTime() - new Date(a.datumTijd).getTime(),
+            )[0].temperatuur,
+          )
+        : null,
     mlGekolfd: kRows.reduce((s, r) => s + r.hoeveelheidMl, 0),
     slaapMinuten: sRows.reduce((s, r) => s + r.duurMinuten, 0),
     huilMinuten: hRows.reduce((s, r) => s + r.duurMinuten, 0),

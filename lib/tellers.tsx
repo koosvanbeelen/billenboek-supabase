@@ -8,6 +8,7 @@ import {
   FlaskConical,
   Moon,
   Frown,
+  Thermometer,
   type LucideIcon,
 } from "lucide-react"
 import type { TellerId } from "@/lib/teller-voorkeur"
@@ -18,6 +19,7 @@ export const tellerMeta: Record<TellerId, { label: string; icon: LucideIcon }> =
   poepluier: { label: "Poepluier", icon: Baby },
   plasluier: { label: "Plasluier", icon: Droplet },
   totaalLuiers: { label: "Totaal luiers", icon: Layers },
+  temperatuur: { label: "Temperatuur", icon: Thermometer },
   tijdSindsVoeding: { label: "Tijd sinds laatste voeding", icon: Clock },
   tijdSindsLuier: { label: "Tijd sinds laatste luier", icon: Clock },
   mlGekolfd: { label: "Milliliter gekolfd", icon: FlaskConical },
