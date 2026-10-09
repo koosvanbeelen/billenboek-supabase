@@ -52,19 +52,50 @@ export async function maakNieuweUitnodiging() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error("Niet ingelogd.")
   const inviteCode = code()
-  const { error } = await supabase.from("gezin_uitnodigingen").insert({ gezin_id: gezinId, code: inviteCode, aangemaakt_door: user.id, vervalt_op: new Date(Date.now() + 30 * 86400000).toISOString() })
+  const vervaltOp = new Date(Date.now() + 30 * 86400000).toISOString()
+  const { error } = await supabase.from("gezin_uitnodigingen").insert({ gezin_id: gezinId, code: inviteCode, aangemaakt_door: user.id, vervalt_op: vervaltOp })
   if (error) throw new Error("Nieuwe code aanmaken lukt niet.")
   revalidatePath("/instellingen")
-  return inviteCode
+  return { code: inviteCode, vervalt_op: vervaltOp }
 }
 
-export async function laadGezinsgegevens() {
+export type GezinsLid = { user_id: string; rol: string; naam: string | null; ben_ik: boolean }
+export type Gezinsgegevens = {
+  gezin: { id: string; naam: string } | null
+  leden: GezinsLid[]
+  ikBenEigenaar: boolean
+  actieveCode: { code: string; vervalt_op: string } | null
+}
+
+export async function laadGezinsgegevens(): Promise<Gezinsgegevens> {
   const supabase = await createClient()
   const gezinId = await getActiefGezinId()
+  const { data: { user } } = await supabase.auth.getUser()
+
   const [{ data: gezin }, { data: leden }, { data: uitnodigingen }] = await Promise.all([
     supabase.from("gezinnen").select("id, naam").eq("id", gezinId).single(),
     supabase.from("gezin_leden").select("user_id, rol, aangemaakt_op").eq("gezin_id", gezinId).order("aangemaakt_op"),
     supabase.from("gezin_uitnodigingen").select("code, vervalt_op, gebruikt_op").eq("gezin_id", gezinId).order("aangemaakt_op", { ascending: false }).limit(10),
   ])
-  return { gezin, leden: leden ?? [], uitnodigingen: uitnodigingen ?? [] }
+
+  const ledenLijst = leden ?? []
+  const { data: profielen } = ledenLijst.length
+    ? await supabase.from("profielen").select("user_id, weergavenaam").in("user_id", ledenLijst.map((lid) => lid.user_id))
+    : { data: [] as { user_id: string; weergavenaam: string }[] }
+  const namen = new Map((profielen ?? []).map((p) => [p.user_id, p.weergavenaam.trim()]))
+
+  const nu = Date.now()
+  const actief = (uitnodigingen ?? []).find((u) => !u.gebruikt_op && new Date(u.vervalt_op).getTime() > nu)
+
+  return {
+    gezin: gezin ? { id: gezin.id as string, naam: gezin.naam as string } : null,
+    leden: ledenLijst.map((lid) => ({
+      user_id: lid.user_id as string,
+      rol: lid.rol as string,
+      naam: namen.get(lid.user_id) || null,
+      ben_ik: lid.user_id === user?.id,
+    })),
+    ikBenEigenaar: ledenLijst.some((lid) => lid.user_id === user?.id && lid.rol === "eigenaar"),
+    actieveCode: actief ? { code: actief.code as string, vervalt_op: actief.vervalt_op as string } : null,
+  }
 }

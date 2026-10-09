@@ -14,5 +14,8 @@ export async function GET(request: Request) {
     console.error("[auth/callback] code uitwisselen mislukt", error.message)
   }
 
+  if (next.startsWith("/wachtwoord-resetten")) {
+    return NextResponse.redirect(new URL("/wachtwoord-vergeten?fout=link", url.origin))
+  }
   return NextResponse.redirect(new URL(`/login?fout=bevestiging&next=${encodeURIComponent(next)}`, url.origin))
 }

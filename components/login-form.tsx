@@ -22,7 +22,7 @@ export function LoginForm({ next = "/", melding }: { next?: string; melding?: st
       {melding ? <p className="mb-5 rounded-xl bg-primary/10 p-3 text-sm text-foreground" role="status">{melding}</p> : null}
       <form action={formAction} className="flex flex-col gap-5"><input type="hidden" name="next" value={next} />
         <Field><FieldLabel htmlFor="email">E-mailadres</FieldLabel><Input id="email" name="email" type="email" autoComplete="email" autoFocus required /></Field>
-        <Field data-invalid={state?.fout ? true : undefined}><FieldLabel htmlFor="password">Wachtwoord</FieldLabel><Input id="password" name="password" type="password" autoComplete="current-password" required aria-invalid={state?.fout ? true : undefined} />{state?.fout ? <p className="text-sm text-destructive" role="alert">{state.fout}</p> : null}</Field>
+        <Field data-invalid={state?.fout ? true : undefined}><div className="flex items-center justify-between"><FieldLabel htmlFor="password">Wachtwoord</FieldLabel><Link href="/wachtwoord-vergeten" className="text-sm font-medium text-primary underline-offset-4 hover:underline">Vergeten?</Link></div><Input id="password" name="password" type="password" autoComplete="current-password" required aria-invalid={state?.fout ? true : undefined} />{state?.fout ? <p className="text-sm text-destructive" role="alert">{state.fout}</p> : null}</Field>
         <VerstuurKnop />
       </form>
       <p className="mt-5 text-center text-sm text-muted-foreground">Nog geen account? <Link href={registrerenHref} className="font-medium text-primary underline-offset-4 hover:underline">Registreren</Link></p>

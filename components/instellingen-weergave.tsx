@@ -15,6 +15,8 @@ import {
   ArrowDownNarrowWide,
   ListChecks,
   ChevronRight,
+  UserRound,
+  LogOut,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Switch } from "@/components/ui/switch"
@@ -29,19 +31,13 @@ import {
 } from "@/lib/tijdlijn-voorkeur"
 import { resetZichtbareFormulieren } from "@/lib/formulier-voorkeur"
 import { resetZichtbareTellers } from "@/lib/teller-voorkeur"
-import { maakNieuweUitnodiging } from "@/app/actions/gezinnen"
+import { GezinKaart } from "@/components/gezin-kaart"
+import { uitloggen } from "@/app/actions/auth"
+import type { Gezinsgegevens } from "@/app/actions/gezinnen"
 
-type Gezinsgegevens = { gezin: { naam: string } | null; leden: { user_id: string; rol: string }[]; uitnodigingen: { code: string; vervalt_op: string; gebruikt_op: string | null }[] }
 type DbStatus = { ok: boolean; bericht: string }
 
 export function InstellingenWeergave({ versie, gezinsgegevens }: { versie: string; gezinsgegevens: Gezinsgegevens }) {
-  const [nieuweCode, setNieuweCode] = useState<string | null>(null)
-  const [codeBezig, setCodeBezig] = useState(false)
-
-  async function genereerCode() {
-    setCodeBezig(true)
-    try { setNieuweCode(await maakNieuweUitnodiging()) } finally { setCodeBezig(false) }
-  }
   // Voorkomt een hydration-mismatch: het thema is pas na mount bekend.
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
@@ -103,12 +99,22 @@ export function InstellingenWeergave({ versie, gezinsgegevens }: { versie: strin
         Instellingen
       </h1>
 
-      <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4">
-        <div><p className="text-sm text-muted-foreground">Gezin</p><h2 className="text-lg font-semibold text-card-foreground">{gezinsgegevens.gezin?.naam}</h2></div>
-        <div className="flex flex-col gap-2"><p className="text-sm font-medium text-card-foreground">Leden ({gezinsgegevens.leden.length})</p>{gezinsgegevens.leden.map((lid) => <p key={lid.user_id} className="text-sm text-muted-foreground">{lid.user_id.slice(0, 8)}… · {lid.rol}</p>)}</div>
-        <Button variant="outline" onClick={genereerCode} disabled={codeBezig}>{codeBezig ? "Bezig..." : "Nieuwe uitnodigingscode"}</Button>
-        {nieuweCode && <p className="rounded-xl bg-primary/10 p-3 font-mono text-sm">{nieuweCode}</p>}
-      </section>
+      <GezinKaart gezinsgegevens={gezinsgegevens} />
+
+      {/* Account (submenu) */}
+      <Link
+        href="/instellingen/account"
+        className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:bg-accent"
+      >
+        <UserRound className="size-5 text-primary" aria-hidden />
+        <div className="flex flex-1 flex-col">
+          <span className="text-base font-medium text-card-foreground">Account</span>
+          <span className="text-sm text-muted-foreground">
+            Naam, wachtwoord en account verwijderen
+          </span>
+        </div>
+        <ChevronRight className="size-5 flex-none text-muted-foreground" aria-hidden />
+      </Link>
 
       {/* Formulieren en tellers (submenu) */}
       <Link
@@ -297,6 +303,13 @@ export function InstellingenWeergave({ versie, gezinsgegevens }: { versie: strin
           Voorkeuren resetten
         </Button>
       </section>
+
+      <form action={uitloggen}>
+        <Button type="submit" variant="outline" className="h-12 w-full text-base">
+          <LogOut data-icon="inline-start" aria-hidden />
+          Uitloggen
+        </Button>
+      </form>
 
       <BevestigDialog
         open={resetOpen}

@@ -25,7 +25,8 @@ export function RegistreerForm({ next = "/" }: { next?: string }) {
     <div>
       <form action={formAction} className="flex flex-col gap-5">
         <input type="hidden" name="next" value={next} />
-        <Field><FieldLabel htmlFor="email">E-mailadres</FieldLabel><Input id="email" name="email" type="email" autoComplete="email" autoFocus required /></Field>
+        <Field><FieldLabel htmlFor="naam">Jouw naam</FieldLabel><Input id="naam" name="naam" type="text" autoComplete="given-name" maxLength={40} placeholder="Zo zien je gezinsleden je" autoFocus required /></Field>
+        <Field><FieldLabel htmlFor="email">E-mailadres</FieldLabel><Input id="email" name="email" type="email" autoComplete="email" required /></Field>
         <Field data-invalid={state?.fout ? true : undefined}>
           <FieldLabel htmlFor="password">Wachtwoord</FieldLabel>
           <Input id="password" name="password" type="password" autoComplete="new-password" minLength={8} required aria-invalid={state?.fout ? true : undefined} />

@@ -8,7 +8,7 @@ export default async function DeelnemenPage({ searchParams }: { searchParams: Pr
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const next = `/gezin/deelnemen${params.code ? `?code=${encodeURIComponent(params.code)}` : ""}`
-  if (!user) redirect(`/login?next=${encodeURIComponent(next)}`)
+  if (!user) redirect(`/registreren?next=${encodeURIComponent(next)}`)
 
   let heeftGezin = false
   try { await getActiefGezinId(); heeftGezin = true } catch {}

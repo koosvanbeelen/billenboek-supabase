@@ -7,9 +7,15 @@ export default async function RegistrerenPage({ searchParams }: { searchParams: 
   const params = await searchParams
   if (await isIngelogd()) redirect("/")
 
+  const next = veiligeNext(params.next)
+  const uitgenodigd = next.startsWith("/gezin/deelnemen")
   return (
-    <AuthShell eyebrow="Nieuw bij Billenboek" title="Maak jullie veilige plek" description="Registreer je gratis en nodig daarna je gezin uit voor één gedeeld overzicht.">
-      <RegistreerForm next={veiligeNext(params.next)} />
+    <AuthShell
+      eyebrow={uitgenodigd ? "Je bent uitgenodigd" : "Nieuw bij Billenboek"}
+      title={uitgenodigd ? "Maak een account om mee te doen" : "Maak jullie veilige plek"}
+      description={uitgenodigd ? "Na het aanmaken van je account sluit je direct aan bij het gezin dat je heeft uitgenodigd." : "Registreer je gratis en nodig daarna je gezin uit voor één gedeeld overzicht."}
+    >
+      <RegistreerForm next={next} />
       <AuthFooter />
     </AuthShell>
   )
